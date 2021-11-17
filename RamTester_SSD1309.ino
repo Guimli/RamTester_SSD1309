@@ -80,9 +80,9 @@ void u8g2_prepare(void) {
 }
 
 char progress_str[4] = "";
-uint8_t posx;
 
 void u8g2_progressbar(float progress, uint8_t posy) {
+  uint8_t posx;
   if (progress >= 0 && progress <= 100) { 
     u8g2.drawFrame(0, posy, 128, 9); // Contour de la ProgresBar
     u8g2.drawBox(1, posy+1, lround(progress*1.26), 7); // Remplissage de la ProgressBar
@@ -116,7 +116,7 @@ void setBus(unsigned short a) {
   } 
 }
 
-void writePage32(unsigned short r, unsigned short c, unsigned short v) {
+void writePage16(unsigned short r, unsigned short c, unsigned short v) {
   // row
   setBus(r);
   digitalWrite(RAS, LOW);
@@ -133,7 +133,7 @@ void writePage32(unsigned short r, unsigned short c, unsigned short v) {
   digitalWrite(RAS, HIGH);
 }
 
-unsigned int readPage32(unsigned short r, unsigned short c) {
+unsigned int readPage16(unsigned short r, unsigned short c) {
   unsigned short ret = 0;
   // row
   setBus(r);
@@ -151,9 +151,9 @@ unsigned int readPage32(unsigned short r, unsigned short c) {
 }
 
 uint8_t memory_detect() {
-  writePage32(0x000, 0x000, 0x5555);
-  writePage32(0x100, 0x000, 0xAAAA);
-  switch(readPage32(0x000, 0x000)) {
+  writePage16(0x000, 0x000, 0x5555);
+  writePage16(0x100, 0x000, 0xAAAA);
+  switch(readPage16(0x000, 0x000)) {
     case 0x0000: return 0; break;
     case 0x5555: return 1; break;
     case 0xAAAA: return 2; break;
@@ -221,6 +221,7 @@ void loop() {
   unsigned short row, row_min, row_max, col, col_max, value;
   unsigned short error = 0;
   char error_str[5];
+  char hexrowcol[4];
   //float row_float;
 
   switch(memory_type) {
@@ -248,11 +249,12 @@ void loop() {
       u8g2.sendBuffer();
     }
     for (col = 0; col <= col_max; col++) {
-      //writePage32(row, col << 4, crc16(row << 5 + col, 2, 0x1021, 0, 0, false, false));
-      writePage32(row, col << 4, row << 5 + col);
+      sprintf(hexrowcol, "%02X%02X", row, col);
+      writePage16(row, col << 4, crc16(hexrowcol, 4, 0x1021, 0, 0, false, false));
+      //writePage16(row, col << 4, row << 5 + col);
     }
-    //Serial.println(row);  
   }  
+  
   // Lecture CRC
   Serial.println(F("Read Pseudo Random"));
   for (row = row_min; row <= row_max; row++) {
@@ -271,8 +273,9 @@ void loop() {
       u8g2.sendBuffer();
     }
     for (col = 0; col <= col_max; col++) {
-    //  if (readPage32(row, col << 4) != crc16(row << 5 + col, 2, 0x1021, 0, 0, false, false)) {
-      if (readPage32(row, col << 4) != row << 5 + col) {
+      sprintf(hexrowcol, "%02X%02X", row, col);
+      if (readPage16(row, col << 4) != crc16(hexrowcol, 4, 0x1021, 0, 0, false, false)) {
+      //if (readPage16(row, col << 4) != row << 5 + col) {
         Serial.print(F("Error Address: "));
         Serial.print(row, HEX);
         Serial.print(F(","));
@@ -280,7 +283,6 @@ void loop() {
         error++;
       }
     }
-    //Serial.println(row);
   }
 
   // Ecriture bits croisés
@@ -305,9 +307,8 @@ void loop() {
       value = 0xAAAA;
     }
     for (col = 0; col <= col_max; col++) {
-      writePage32(row, col << 4, value);
+      writePage16(row, col << 4, value);
     }
-    //Serial.println(row);  
   }  
     
   // Lecture bits croisés
@@ -332,12 +333,12 @@ void loop() {
       value = 0xAAAA;
     }
     for (col = 0; col <= col_max; col++) {
-      if (countSetBits(readPage32(row, col << 4) ^ value) != 0) {
+      if (countSetBits(readPage16(row, col << 4) ^ value) != 0) {
         Serial.print(F("Error Address: "));
         Serial.print(row, HEX);
         Serial.print(F(","));
         Serial.println(col << 4, HEX);
-        error += countSetBits(readPage32(row, col << 4) ^ value);
+        error += countSetBits(readPage16(row, col << 4) ^ value);
       }
     }
   }
@@ -364,9 +365,8 @@ void loop() {
       value = 0x5555;
       }
     for (col = 0; col <= col_max; col++) {
-      writePage32(row, col << 4, value);
+      writePage16(row, col << 4, value);
       }
-    //Serial.println(row);  
     }  
     
   // Lecture
@@ -391,15 +391,14 @@ void loop() {
       value = 0x5555;
       }
     for (col = 0; col <= col_max; col++) {
-      if (countSetBits(readPage32(row, col << 4) ^ value) != 0) {
+      if (countSetBits(readPage16(row, col << 4) ^ value) != 0) {
         Serial.print(F("Error Address: "));
         Serial.print(row, HEX);
         Serial.print(F(","));
         Serial.println(col << 4, HEX);
-        error += countSetBits(readPage32(row, col << 4) ^ value);
+        error += countSetBits(readPage16(row, col << 4) ^ value);
         }
       }
-    //Serial.println(row);
     }
 
   u8g2.clearBuffer();
