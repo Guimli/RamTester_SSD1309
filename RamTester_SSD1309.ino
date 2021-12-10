@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <avr/sleep.h>
-#include "CRC.h"
+#include "FastCRC.h"
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -32,6 +32,8 @@ U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/
 #define BUS_SIZE     9
 
 const uint8_t a_bus[BUS_SIZE] = { XA0, XA1, XA2, XA3, XA4, XA5, XA6, XA7, XA8 };
+
+FastCRC16 CRC16;
 
 const char MESSAGE00[] PROGMEM = "";
 const char MESSAGE01[] PROGMEM = "DRAM 4256";
@@ -243,14 +245,14 @@ void loop() {
       u8g2_message(0, 23, 18); //Erreur(s):
       u8g2.drawStr(66, 23, error_str);
       u8g2_message(0, 32, 19); // Ecriture aleatoire
-      u8g2_progressbar(row / 2.55, 42);
-      u8g2_progressbar(row / 15.3, 55);
+      u8g2_progressbar(row * 100 / row_max , 42);
+      u8g2_progressbar(row * 16.667 / row_max, 55);
       u8g2_message(10, 55, 20); // Total:
       u8g2.sendBuffer();
     }
     for (col = 0; col <= col_max; col++) {
       sprintf(hexrowcol, "%02X%02X", row, col);
-      writePage16(row, col << 4, crc16(hexrowcol, 4, 0x1021, 0, 0, false, false));
+      writePage16(row, col << 4, CRC16.ccitt(hexrowcol, 4));
       //writePage16(row, col << 4, row << 5 + col);
     }
   }  
@@ -267,14 +269,14 @@ void loop() {
       u8g2_message(0, 23, 18); // Erreur(s):
       u8g2.drawStr(66, 23, error_str);
       u8g2_message(0, 32, 21); // Lecture
-      u8g2_progressbar(row / 2.55, 42);
-      u8g2_progressbar(row / 15.3 + 16.66, 55);
+      u8g2_progressbar(row * 100 / row_max, 42);
+      u8g2_progressbar(row * 16.667 / row_max + 16.66, 55);
       u8g2_message(10, 55, 20); // Total:
       u8g2.sendBuffer();
     }
     for (col = 0; col <= col_max; col++) {
       sprintf(hexrowcol, "%02X%02X", row, col);
-      if (readPage16(row, col << 4) != crc16(hexrowcol, 4, 0x1021, 0, 0, false, false)) {
+      if (readPage16(row, col << 4) != CRC16.ccitt(hexrowcol, 4)) {
       //if (readPage16(row, col << 4) != row << 5 + col) {
         Serial.print(F("Error Address: "));
         Serial.print(row, HEX);
@@ -298,8 +300,8 @@ void loop() {
       u8g2_message(0, 23, 18); // Erreur(s):
       u8g2.drawStr(66, 23, error_str);
       u8g2_message(0, 32, 22); // Ecriture 0x5555..AAAA
-      u8g2_progressbar(row / 2.55, 42);
-      u8g2_progressbar(row / 15.3 + 33.33, 55);
+      u8g2_progressbar(row * 100 / row_max, 42);
+      u8g2_progressbar(row * 16.667 / row_max + 33.33, 55);
       u8g2_message(10, 55, 20); // Total:
       u8g2.sendBuffer();      
     }
@@ -323,9 +325,9 @@ void loop() {
       sprintf(error_str, "%d", error);
       u8g2_message(0, 23, 18); // Erreur(s):
       u8g2.drawStr(66, 23, error_str);
-      u8g2_message(0, 32, 19); // Lecture
-      u8g2_progressbar(row / 2.55, 42);
-      u8g2_progressbar(row / 15.3 + 50, 55);
+      u8g2_message(0, 32, 21); // Lecture
+      u8g2_progressbar(row * 100 / row_max, 42);
+      u8g2_progressbar(row * 16.667 / row_max + 50, 55);
       u8g2_message(10, 55, 20); // Total:
       u8g2.sendBuffer();
     }
@@ -356,8 +358,8 @@ void loop() {
       u8g2_message(0, 23, 18); // Erreur(s):
       u8g2.drawStr(66, 23, error_str);
       u8g2_message(0, 32, 23); // Ecriture 0xAAAA..5555
-      u8g2_progressbar(row / 2.55, 42);
-      u8g2_progressbar(row / 15.3 + 66.66, 55);
+      u8g2_progressbar(row * 100 / row_max, 42);
+      u8g2_progressbar(row * 16.667 / row_max + 66.66, 55);
       u8g2_message(10, 55, 20); // Total:
       u8g2.sendBuffer();      
       }
@@ -382,8 +384,8 @@ void loop() {
       u8g2_message(0, 23, 18); // Erreur(s):
       u8g2.drawStr(66, 23, error_str);
       u8g2_message(0, 32, 21); // Lecture
-      u8g2_progressbar(row / 2.55, 42);
-      u8g2_progressbar(row / 15.3 + 83.33, 55);
+      u8g2_progressbar(row * 100 / row_max, 42);
+      u8g2_progressbar(row * 16.667 / row_max + 83.33, 55);
       u8g2_message(10, 55, 20); // Total:
       u8g2.sendBuffer();      
       }
